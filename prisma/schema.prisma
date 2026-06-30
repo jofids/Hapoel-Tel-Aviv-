@@ -1,0 +1,463 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id              String           @id @default(uuid()) @db.Uuid
+  email           String           @unique
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  profile         Profile?
+  userPredictions UserPrediction[]
+  auditLogs       AuditLog[]
+
+  @@map("users")
+}
+
+model Profile {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @unique @map("user_id") @db.Uuid
+  displayName String   @map("display_name")
+  avatarUrl   String?  @map("avatar_url")
+  locale      String   @default("he")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+model Competition {
+  id          String    @id @default(uuid()) @db.Uuid
+  externalId  String?   @unique @map("external_id")
+  name        String
+  country     String?
+  type        String
+  level       Int       @default(1)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  seasons     Season[]
+  teams       Team[]
+  matches     Match[]
+  standings   Standing[]
+
+  @@map("competitions")
+}
+
+model Season {
+  id            String      @id @default(uuid()) @db.Uuid
+  competitionId String      @map("competition_id") @db.Uuid
+  name          String
+  startsAt      DateTime    @map("starts_at")
+  endsAt        DateTime    @map("ends_at")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+  competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  matches       Match[]
+
+  @@unique([competitionId, name])
+  @@map("seasons")
+}
+
+model Team {
+  id              String             @id @default(uuid()) @db.Uuid
+  externalId      String?            @unique @map("external_id")
+  competitionId   String?            @map("competition_id") @db.Uuid
+  name            String
+  shortName       String?            @map("short_name")
+  country         String?
+  type            String             @default("club")
+  ranking         Int?
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
+  competition     Competition?       @relation(fields: [competitionId], references: [id])
+  players         Player[]
+  homeMatches     Match[]            @relation("HomeTeam")
+  awayMatches     Match[]            @relation("AwayTeam")
+  formSnapshots   TeamFormSnapshot[]
+  standings       Standing[]
+  lineups         Lineup[]
+  injuries        Injury[]
+  matchStatsHome  MatchStatistic[]   @relation("HomeStatisticTeam")
+  matchStatsAway  MatchStatistic[]   @relation("AwayStatisticTeam")
+
+  @@map("teams")
+}
+
+model Player {
+  id          String   @id @default(uuid()) @db.Uuid
+  externalId  String?  @unique @map("external_id")
+  teamId      String   @map("team_id") @db.Uuid
+  name        String
+  position    String
+  shirtNumber Int?     @map("shirt_number")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  lineups     Lineup[]
+  injuries    Injury[]
+
+  @@map("players")
+}
+
+model Match {
+  id                       String                    @id @default(uuid()) @db.Uuid
+  externalId               String?                   @unique @map("external_id")
+  competitionId            String                    @map("competition_id") @db.Uuid
+  seasonId                 String                    @map("season_id") @db.Uuid
+  homeTeamId               String                    @map("home_team_id") @db.Uuid
+  awayTeamId               String                    @map("away_team_id") @db.Uuid
+  kickoffAt                DateTime                  @map("kickoff_at")
+  status                   MatchStatus               @default(SCHEDULED)
+  venue                    String?
+  homeScore                Int?                      @map("home_score")
+  awayScore                Int?                      @map("away_score")
+  minute                   Int?
+  matchImportance          Float                     @default(0.5) @map("match_importance")
+  stage                    String                    @default("league")
+  createdAt                DateTime                  @default(now()) @map("created_at")
+  updatedAt                DateTime                  @updatedAt @map("updated_at")
+  competition              Competition               @relation(fields: [competitionId], references: [id])
+  season                   Season                    @relation(fields: [seasonId], references: [id])
+  homeTeam                 Team                      @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeam                 Team                      @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  statistics               MatchStatistic[]
+  lineups                  Lineup[]
+  injuries                 Injury[]
+  liveEvents               LiveEvent[]
+  oddsSnapshots            OddsSnapshot[]
+  modelRuns                ModelRun[]
+  modelPredictions         ModelPrediction[]
+  userPredictions          UserPrediction[]
+  crowdPredictionSnapshots CrowdPredictionSnapshot[]
+
+  @@index([kickoffAt])
+  @@index([status])
+  @@map("matches")
+}
+
+model MatchStatistic {
+  id                 String   @id @default(uuid()) @db.Uuid
+  matchId            String   @map("match_id") @db.Uuid
+  homeTeamId         String   @map("home_team_id") @db.Uuid
+  awayTeamId         String   @map("away_team_id") @db.Uuid
+  homeExpectedGoals  Float?   @map("home_expected_goals")
+  awayExpectedGoals  Float?   @map("away_expected_goals")
+  homeShots          Int?     @map("home_shots")
+  awayShots          Int?     @map("away_shots")
+  homeShotsOnTarget  Int?     @map("home_shots_on_target")
+  awayShotsOnTarget  Int?     @map("away_shots_on_target")
+  homePossession     Float?   @map("home_possession")
+  awayPossession     Float?   @map("away_possession")
+  source             String   @default("demo")
+  capturedAt         DateTime @default(now()) @map("captured_at")
+  match              Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  homeTeam           Team     @relation("HomeStatisticTeam", fields: [homeTeamId], references: [id])
+  awayTeam           Team     @relation("AwayStatisticTeam", fields: [awayTeamId], references: [id])
+
+  @@unique([matchId, source])
+  @@map("match_statistics")
+}
+
+model TeamFormSnapshot {
+  id                      String   @id @default(uuid()) @db.Uuid
+  teamId                  String   @map("team_id") @db.Uuid
+  capturedAt              DateTime @default(now()) @map("captured_at")
+  lastFiveGoalsFor        Float    @map("last_five_goals_for")
+  lastFiveGoalsAgainst    Float    @map("last_five_goals_against")
+  lastTenGoalsFor         Float    @map("last_ten_goals_for")
+  lastTenGoalsAgainst     Float    @map("last_ten_goals_against")
+  homeGoalsFor            Float    @map("home_goals_for")
+  homeGoalsAgainst        Float    @map("home_goals_against")
+  awayGoalsFor            Float    @map("away_goals_for")
+  awayGoalsAgainst        Float    @map("away_goals_against")
+  xgFor                   Float?   @map("xg_for")
+  xgAgainst               Float?   @map("xg_against")
+  opponentStrengthAverage Float    @map("opponent_strength_average")
+  restDays                Int      @map("rest_days")
+  fixtureCongestionIndex  Float    @map("fixture_congestion_index")
+  team                    Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([teamId, capturedAt])
+  @@map("team_form_snapshots")
+}
+
+model Standing {
+  id            String      @id @default(uuid()) @db.Uuid
+  competitionId String      @map("competition_id") @db.Uuid
+  teamId        String      @map("team_id") @db.Uuid
+  position      Int
+  played        Int
+  points        Int
+  goalDiff      Int         @map("goal_diff")
+  capturedAt    DateTime    @default(now()) @map("captured_at")
+  competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  team          Team        @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([competitionId, teamId, capturedAt])
+  @@map("standings")
+}
+
+model Lineup {
+  id            String        @id @default(uuid()) @db.Uuid
+  matchId       String        @map("match_id") @db.Uuid
+  teamId        String        @map("team_id") @db.Uuid
+  playerId      String?       @map("player_id") @db.Uuid
+  playerName    String        @map("player_name")
+  position      String
+  isStarting    Boolean       @default(false) @map("is_starting")
+  isConfirmed   Boolean       @default(false) @map("is_confirmed")
+  availability  Availability  @default(AVAILABLE)
+  source        String        @default("demo")
+  capturedAt    DateTime      @default(now()) @map("captured_at")
+  match         Match         @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  team          Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  player        Player?       @relation(fields: [playerId], references: [id])
+
+  @@index([matchId, teamId])
+  @@map("lineups")
+}
+
+model Injury {
+  id          String   @id @default(uuid()) @db.Uuid
+  matchId     String?  @map("match_id") @db.Uuid
+  teamId      String   @map("team_id") @db.Uuid
+  playerId    String?  @map("player_id") @db.Uuid
+  playerName  String   @map("player_name")
+  reason      String
+  status      String
+  severity    Float    @default(0.5)
+  startsAt    DateTime @map("starts_at")
+  expectedEnd DateTime? @map("expected_end")
+  source      String   @default("demo")
+  createdAt   DateTime @default(now()) @map("created_at")
+  match       Match?   @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  player      Player?  @relation(fields: [playerId], references: [id])
+
+  @@index([teamId, status])
+  @@map("injuries")
+}
+
+model LiveEvent {
+  id            String        @id @default(uuid()) @db.Uuid
+  matchId       String        @map("match_id") @db.Uuid
+  externalId    String?       @map("external_id")
+  type          LiveEventType
+  minute        Int
+  teamId        String?       @map("team_id") @db.Uuid
+  playerName    String?       @map("player_name")
+  description   String
+  payloadJson   Json?         @map("payload_json")
+  occurredAt    DateTime      @map("occurred_at")
+  match         Match         @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, externalId])
+  @@index([matchId, minute])
+  @@map("live_events")
+}
+
+model OddsSnapshot {
+  id         String   @id @default(uuid()) @db.Uuid
+  matchId    String   @map("match_id") @db.Uuid
+  provider   String
+  bookmaker  String
+  homeOdds   Float    @map("home_odds")
+  drawOdds   Float    @map("draw_odds")
+  awayOdds   Float    @map("away_odds")
+  capturedAt DateTime @default(now()) @map("captured_at")
+  match      Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@index([matchId, capturedAt])
+  @@map("odds_snapshots")
+}
+
+model ModelVersion {
+  id               String            @id @default(uuid()) @db.Uuid
+  name             String
+  version          String            @unique
+  description      String
+  parametersJson   Json              @map("parameters_json")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  modelRuns        ModelRun[]
+  modelPredictions ModelPrediction[]
+
+  @@map("model_versions")
+}
+
+model ModelRun {
+  id             String       @id @default(uuid()) @db.Uuid
+  matchId        String       @map("match_id") @db.Uuid
+  modelVersionId String       @map("model_version_id") @db.Uuid
+  status         String       @default("completed")
+  inputJson      Json         @map("input_json")
+  outputJson     Json         @map("output_json")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  match          Match        @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  modelVersion   ModelVersion @relation(fields: [modelVersionId], references: [id])
+
+  @@index([matchId, createdAt])
+  @@map("model_runs")
+}
+
+model ModelPrediction {
+  id                         String       @id @default(uuid()) @db.Uuid
+  matchId                    String       @map("match_id") @db.Uuid
+  modelVersionId             String       @map("model_version_id") @db.Uuid
+  homeExpectedGoals          Float        @map("home_expected_goals")
+  awayExpectedGoals          Float        @map("away_expected_goals")
+  homeWinProbability         Float        @map("home_win_probability")
+  drawProbability            Float        @map("draw_probability")
+  awayWinProbability         Float        @map("away_win_probability")
+  over25Probability          Float        @map("over_2_5_probability")
+  bothTeamsScoreProbability  Float        @map("both_teams_score_probability")
+  exactScoreMatrixJson       Json         @map("exact_score_matrix_json")
+  topScorePredictionsJson    Json         @map("top_score_predictions_json")
+  winnerConfidence           Float        @map("winner_confidence")
+  exactScoreConfidence       Float        @map("exact_score_confidence")
+  dataQualityScore           Float        @map("data_quality_score")
+  sourceAgreementScore       Float        @map("source_agreement_score")
+  explanationJson            Json         @map("explanation_json")
+  createdAt                  DateTime     @default(now()) @map("created_at")
+  match                      Match        @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  modelVersion               ModelVersion @relation(fields: [modelVersionId], references: [id])
+
+  @@index([matchId, createdAt])
+  @@map("model_predictions")
+}
+
+model UserPrediction {
+  id                     String                   @id @default(uuid()) @db.Uuid
+  userId                 String                   @map("user_id") @db.Uuid
+  matchId                String                   @map("match_id") @db.Uuid
+  predictedHomeScore     Int                      @map("predicted_home_score")
+  predictedAwayScore     Int                      @map("predicted_away_score")
+  confidenceLevel        Int                      @map("confidence_level")
+  comment                String?
+  submittedAt            DateTime                 @default(now()) @map("submitted_at")
+  lockedAt               DateTime?                @map("locked_at")
+  pointsAwarded          Int                      @default(0) @map("points_awarded")
+  isExact                Boolean                  @default(false) @map("is_exact")
+  isOutcomeCorrect       Boolean                  @default(false) @map("is_outcome_correct")
+  user                   User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  match                  Match                    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  snapshots              UserPredictionSnapshot[]
+
+  @@unique([userId, matchId])
+  @@index([matchId])
+  @@map("user_predictions")
+}
+
+model UserPredictionSnapshot {
+  id                 String         @id @default(uuid()) @db.Uuid
+  userPredictionId   String         @map("user_prediction_id") @db.Uuid
+  predictedHomeScore Int            @map("predicted_home_score")
+  predictedAwayScore Int            @map("predicted_away_score")
+  confidenceLevel    Int            @map("confidence_level")
+  comment            String?
+  changeReason       String         @map("change_reason")
+  createdAt          DateTime       @default(now()) @map("created_at")
+  userPrediction     UserPrediction @relation(fields: [userPredictionId], references: [id], onDelete: Cascade)
+
+  @@index([userPredictionId, createdAt])
+  @@map("user_prediction_snapshots")
+}
+
+model CrowdPredictionSnapshot {
+  id                       String   @id @default(uuid()) @db.Uuid
+  matchId                  String   @map("match_id") @db.Uuid
+  homeWinProbability       Float    @map("home_win_probability")
+  drawProbability          Float    @map("draw_probability")
+  awayWinProbability       Float    @map("away_win_probability")
+  averageHomeScore         Float    @map("average_home_score")
+  averageAwayScore         Float    @map("average_away_score")
+  participantCount         Int      @map("participant_count")
+  capturedAt               DateTime @default(now()) @map("captured_at")
+  match                    Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@index([matchId, capturedAt])
+  @@map("crowd_prediction_snapshots")
+}
+
+model LeaderboardSnapshot {
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  rank            Int
+  points          Int
+  exactHits       Int      @map("exact_hits")
+  outcomeHits     Int      @map("outcome_hits")
+  predictionCount Int      @map("prediction_count")
+  capturedAt      DateTime @default(now()) @map("captured_at")
+
+  @@index([capturedAt, rank])
+  @@map("leaderboard_snapshots")
+}
+
+model SyncJob {
+  id             String    @id @default(uuid()) @db.Uuid
+  provider       String
+  entity         String
+  status         String
+  startedAt      DateTime  @default(now()) @map("started_at")
+  finishedAt     DateTime? @map("finished_at")
+  recordsFetched Int       @default(0) @map("records_fetched")
+  errorMessage   String?   @map("error_message")
+  metadataJson   Json?     @map("metadata_json")
+
+  @@index([provider, entity, startedAt])
+  @@map("sync_jobs")
+}
+
+model AppSetting {
+  id          String   @id @default(uuid()) @db.Uuid
+  key         String   @unique
+  valueJson   Json     @map("value_json")
+  description String?
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("app_settings")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String?  @map("user_id") @db.Uuid
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String?  @map("entity_id") @db.Uuid
+  beforeJson Json?    @map("before_json")
+  afterJson  Json?    @map("after_json")
+  createdAt  DateTime @default(now()) @map("created_at")
+  user       User?    @relation(fields: [userId], references: [id])
+
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}
+
+enum MatchStatus {
+  SCHEDULED
+  LIVE
+  FINISHED
+  POSTPONED
+  CANCELLED
+}
+
+enum Availability {
+  AVAILABLE
+  DOUBTFUL
+  INJURED
+  SUSPENDED
+}
+
+enum LiveEventType {
+  GOAL
+  CARD
+  SUBSTITUTION
+  VAR
+  INJURY
+  PERIOD
+  OTHER
+}
