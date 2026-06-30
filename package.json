@@ -1,16 +1,52 @@
 {
-  "name": "osint-monitor",
-  "version": "1.0.0",
-  "description": "OSINT Monitor — Real-time Middle East intelligence dashboard",
-  "main": "server.js",
+  "name": "predict-football",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Predict Football - transparent football match prediction foundation",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "next dev",
+    "build": "prisma generate && next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "tsx prisma/seed.ts",
+    "test": "vitest run"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "rss-parser": "^3.13.0",
-    "node-fetch": "^2.7.0",
-    "cors": "^2.8.5"
+    "@prisma/adapter-pg": "^7.8.0",
+    "@prisma/client": "latest",
+    "@tanstack/react-query": "latest",
+    "class-variance-authority": "latest",
+    "clsx": "latest",
+    "dotenv": "^17.4.2",
+    "lucide-react": "latest",
+    "next": "latest",
+    "next-themes": "latest",
+    "pg": "^8.22.0",
+    "react": "latest",
+    "react-dom": "latest",
+    "recharts": "latest",
+    "tailwind-merge": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "latest",
+    "@types/node": "latest",
+    "@types/pg": "^8.20.0",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "eslint": "latest",
+    "eslint-config-next": "latest",
+    "postcss": "latest",
+    "prisma": "latest",
+    "tailwindcss": "latest",
+    "tsx": "latest",
+    "typescript": "latest",
+    "vitest": "latest"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   }
 }
